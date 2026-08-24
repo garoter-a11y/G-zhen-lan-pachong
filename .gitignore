@@ -1,0 +1,11 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+temp/
+__pycache__/
+*.pyc
+.env
+# 测试/临时产物
+test-output/
+*.tmp
