@@ -82,7 +82,7 @@ node "$skill\bin\harvest.mjs" "URL" -s "nav" -o "D:\Temp\comp" --wait 3000 --vie
 
 G先生 在日常 Chrome 装 **Com-Pick** 插件（第三方闭源，作者「Sue的AI知识库」），在参考站 hover 点选组件 → 复制「给 AI」的 markdown → 存到 `桌面\zhenpachong\<域名>\components\<组件名>.md`，同样当复刻饲料。适合「我看到这个控件不错，顺手采它」。
 
-> 版权红线：Com-Pick **闭源**，不逐字搬它的 content.js；内置采集器 `harvest-inject.js` 是**自写**的，只学它的方法（视觉宿主上溯 / 交互识别 / 脱敏白名单 / 任务书话术）。
+> 内置采集器 `harvest-inject.js` 为**自写**（学 Com-Pick 的方法：视觉宿主上溯 / 交互识别 / 脱敏白名单 / 任务书话术，不逐字搬 content.js）。**自写是工程选择不是版权洁癖**：箴爬虫已有 router/run/Playwright 架构、selector 驱动比人工 hover 更可复现可批量，且不需要 Com-Pick 的 Figma 链路（figit 9.6MB）与悬浮 picker UI 包袱（YAGNI）。注：G-zhen 仓全 **PRIVATE 自用、不构成公开分发**（2026-09-05 复盘），在私有仓里参考/移植闭源代码法律风险≈0；将来若仓改 PUBLIC 或打进发外部用户的产品，再核 LICENSE。figit.js 是开源 bundle，真要搬 Figma 链路前核其捆绑库 LICENSE。
 
 ### 产物（任务书 markdown）含什么
 
