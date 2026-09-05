@@ -1,7 +1,7 @@
 ---
 name: G-zhen-lan-pachong
-description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页。当需要把网页内容（文章、文档、列表、整个小站）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载，不管正文抓取）。
-version: 2.0.0
+description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
+version: 2.1.0
 ---
 
 # G-zhen-lan-pachong 箴爬虫
@@ -15,8 +15,9 @@ version: 2.0.0
 - 批量/全站抓（文档站、博客、小站）→ katana 发现链接 + 队列逐页抓
 - 把网页存成自包含 HTML（内联图片/CSS 离线可看）→ monolith 归档
 - 以上都失败 → 截图，交 image 工具视觉识别
+- **采网页上的一个 UI 组件/控件**（按钮、表单、卡片、导航、订阅框、滑块面板…）→ 组件采集（见下「UI 组件采集」），产脱敏「组件复刻任务书」markdown
 
-**不要用我做的**：下视频/音频/图片流（那是 G-zhen-wangluo 箴网络）；登录态/付费墙内容（先问 G 先生）。
+**不要用我做的**：下视频/音频/图片流（那是 G-zhen-wangluo 箴网络）；登录态/付费墙内容（先问 G 先生）；**拆解某个插件/JS 的加密或混淆逻辑**（那是 G-zhen-nixiang 箴逆向——「拆明白一个黑盒」归它，「采页面内容」归我）；**根据采集稿把组件写成我们自己的代码**（那是 G-zhen-ui 箴UI craft——我只管「采进来」，箴UI 管「生成出来」）。
 
 ## 工具链（全部本机已装，零 npm 依赖）
 
@@ -47,6 +48,54 @@ version: 2.0.0
 
 > 全站链路按 YAGNI 只保留产出文本的级（curl→Playwright→firecrawl）。monolith 归档/截图不产文本且批量太重，不在全站链路里；需要时对单页用 `scrape --archive`。
 
+## UI 组件采集（harvest）
+
+把网页上**一个看得见的组件/控件**（按钮、表单、卡片、导航、订阅框、滑块面板…）采成本地**脱敏的「组件复刻任务书」markdown**，供下游照它的交互/布局/状态、用项目**自有 DESIGN.md** 重写。
+
+> **它是什么 / 不是什么**（边界，别误用）：
+> - 是**组件级**采样（一个控件/一块区域），**不是**整站爬虫、**不是**动效/页面全量抓取。
+> - 产物是「从活页面逆向的体检报告」（descriptive），讲组件现在长什么样、有哪些交互/状态；**不是**施工图纸。
+> - 采集依赖活页面浏览器 API（getComputedStyle / DOM / 样式表规则），Node/CLI 干不了，必须走 Playwright/CDP（本 skill 链路现成）。
+
+### 双线（走哪条都行）
+
+**① 内置线（自动、可复现、可批量、可进流水线）——首选**
+
+```powershell
+$skill = "C:\Users\Administrator\.openclaw\workspace\skills\G-zhen-lan-pachong"
+
+# 采一个组件（URL 或本地 .html 都行）
+node "$skill\bin\harvest.mjs" "https://example.com/" --selector "footer.newsletter" --name "newsletter-footer"
+
+# 一次采多个（selector 与 name 按顺序对应）
+node "$skill\bin\harvest.mjs" "URL" -s ".subscribe" -s ".card" -n "subscribe-form" -n "card" -v
+
+# 指定输出目录 / 等待时间 / 视口 / JSON 摘要
+node "$skill\bin\harvest.mjs" "URL" -s "nav" -o "D:\Temp\comp" --wait 3000 --viewport 1280x800 --json
+```
+
+默认输出：`桌面\zhenpachong\<域名>\components\<组件名>.md`（本地文件落在 `local-components\components\`）。
+
+内置线相对浏览器插件多三件事：**可复现/可批量**、**能进门禁流水线**、**读原始样式表规则**——同源 CSS 的 `@media`/`:hover`/`var()`/`clamp()`/`minmax()` 原文都能拿到（`getComputedStyle` 死像素快照拿不到响应式规则）。跨域 CDN 样式表被 CORS 拦截时，产物里**如实标注**「N 个样式表未取到」，缺失部分按自有体系补并标【推测】。
+
+**② 插件线（人工点选，零散场景）**
+
+G先生 在日常 Chrome 装 **Com-Pick** 插件（第三方闭源，作者「Sue的AI知识库」），在参考站 hover 点选组件 → 复制「给 AI」的 markdown → 存到 `桌面\zhenpachong\<域名>\components\<组件名>.md`，同样当复刻饲料。适合「我看到这个控件不错，顺手采它」。
+
+> 版权红线：Com-Pick **闭源**，不逐字搬它的 content.js；内置采集器 `harvest-inject.js` 是**自写**的，只学它的方法（视觉宿主上溯 / 交互识别 / 脱敏白名单 / 任务书话术）。
+
+### 产物（任务书 markdown）含什么
+
+组件摘要（尺寸/交互计数）· 通用交互契约（input/button/link/slider/switch，动作走 props+callback）· 设计 Token 反推（颜色/圆角/字号/字体，仅供参考）· **响应式规则**（@media 原文）· **状态**（:hover/:focus/::placeholder/[aria-]）· **原始样式规则**（var()/clamp() 活值）· 关键视觉 CSS（当前视口计算值）· 清理后 DOM · 安全清理清单 · 验收要求。
+
+**脱敏是硬门禁**（采集器自动做）：剥事件处理（on*）、href/action/src、内联 style；属性走**白名单**（id/class/role/type/name/aria-*/data-state 等结构属性），其余全删——这一刀同时去掉 token/auth/session/cookie/csrf/secret/password/email/phone 等敏感属性和 analytics/gtm/segment/tracking 埋点属性；链接 `<a>` 转 `role="button" tabindex="0"`（无导航目标）。
+
+### 采完之后（复刻边界）
+
+- **复刻 ≠ 照抄**：照任务书的**交互/布局/状态**，用项目**自有 DESIGN.md token** 重新实现；不搬外站 DOM/CSS/字体/外链资源/像素死值。任务书里 5 条复刻纪律（仅增量添加 / 不抄业务逻辑请求埋点凭证 / 缺失状态标【推测】/ 动作走 props+callback / 视觉用自有体系）逐条遵守。
+- **教学动画内核不走这条线**：数学公式、几何引擎、帧理 SVG、GeoGebra ggb —— 这些靠箴视野「查源复刻」（db / decrypted / ggb xml），网页组件采集拿的是渲染后像素，取不到公式逻辑。组件采集只用于**课件外壳 UI 控件**（quiz-card 面板滑块/按钮、双 Tab 外壳、进度控件等）。
+- 职责路由：**采** → 箴爬虫（本 skill）；**写成我们的代码** → 箴UI craft；**拆插件/JS 黑盒** → 箴逆向；**下媒体/截图** → 箴网络。
+
 ## 怎么调（命令速查）
 
 ```powershell
@@ -76,8 +125,12 @@ node "$skill\bin\crawl.mjs" "https://app.example.com" --js --firecrawl --depth 1
 # 只抓匹配的路径，排除静态/分页
 node "$skill\bin\crawl.mjs" "URL" --include "/docs/*" --exclude "*/tag/*"
 
-# 跑测试
-cd $skill; node --test tests/router.test.mjs
+# 采 UI 组件 → 脱敏复刻任务书 markdown（详见上文「UI 组件采集」）
+node "$skill\bin\harvest.mjs" "URL" --selector "footer.newsletter" --name "newsletter-footer"
+node "$skill\bin\harvest.mjs" "本地.html" -s ".subscribe" -s ".card" -n "form" -n "card" -v --json
+
+# 跑测试（38 个：router 23 + component-md 15）
+cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs
 ```
 
 默认输出：`C:\Users\Administrator\Desktop\zhenpachong\<域名>\...`
@@ -111,11 +164,16 @@ cd $skill; node --test tests/router.test.mjs
 
 - `bin/lib/router.mjs`：纯函数——URL/选项→策略、工具路径探测、文件名生成。零副作用，可独立测试。
 - `bin/lib/run.mjs`：`spawnSync` 数组参数安全封装（防 shell 注入）。
+- `bin/lib/component-md.mjs`：**组件采集纯函数**——DOM 脱敏白名单、设计 token 反推、任务书 markdown 渲染、文件名生成。零副作用，可独立测试。
 - `bin/extract.py`：trafilatura 正文抽取（precision→recall→bs4/markdownify 三级）。
 - `bin/render.py`：Playwright 渲染（含自动滚屏触发懒加载）。
 - `bin/scrape.mjs`：单页降级链入口。
 - `bin/crawl.mjs`：全站 katana+队列。
+- `bin/harvest.mjs`：**组件采集编排**——调 harvest.py 拿 JSON → component-md 渲染任务书 → 落盘。
+- `bin/harvest.py`：Playwright 开页（URL/本地文件）→ 注入采集器 → 按 selector 采 → 输出 JSON。
+- `bin/harvest-inject.js`：**自写页面采集器**（注入目标页跑）——视觉宿主/交互识别/原始样式表规则（@media/:hover/var/clamp）/脱敏，本地返回不外传。
 - `tests/router.test.mjs`：23 测试（策略路由 + runTool 安全/stdin 回归 + extract.py 集成）。
+- `tests/component-md.test.mjs`：15 测试（脱敏白名单 + 攻击样例：script/style 标签体、hidden csrf、预填 email/phone、截断边界不泄漏；token 反推；任务书段落与安全契约；文件名）。
 
 ## 质量纪律（箴代码）
 
