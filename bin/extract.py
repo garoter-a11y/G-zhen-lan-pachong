@@ -49,8 +49,6 @@ def main():
         return 2
 
     output_format = args.format
-    if output_format == "txt":
-        output_format = "txt"
 
     try:
         # trafilatura.extract returns None if it cannot identify main content

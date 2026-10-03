@@ -117,6 +117,20 @@ export function looksLikeShell(html) {
   return text.length < 500;
 }
 
+/**
+ * Sanitize a user-supplied --filename: strip every path component/separator so
+ * it can never escape the output dir. Returns "" for empty input so callers fall
+ * back to the URL-derived default (never the literal string "null"). Windows
+ * reserved device basenames get an underscore prefix so writes don't silently fail.
+ */
+export function safeArgName(name) {
+  if (!name) return "";
+  const s = String(name).replace(/[<>:"/|?*\\]/g, "_").replace(/\.+/g, ".")
+    .replace(/^[. ]+|[. ]+$/g, "").slice(0, 80);
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(s)) return `_${s}`;
+  return s;
+}
+
 /** Sanitize a URL path segment into a safe directory/file name. */
 export function pathFromUrl(url) {
   try {

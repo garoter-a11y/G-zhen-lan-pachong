@@ -96,10 +96,10 @@ auto 模式下，前一级失败（抓不到 / 抽不出正文）才升级到下
 
 ```powershell
 cd C:\Users\Administrator\.openclaw\workspace\skills\G-zhen-lan-pachong
-node --test tests/router.test.mjs
+node --test tests/*.test.mjs   # Node ≥26 不接受目录参数
 ```
 
-覆盖：策略路由、路径探测、URL→文件名、runTool 安全调用 / stdin 回归 / 防注入、extract.py 正文抽取集成。
+51 个测试（router 26 + component-md 15 + proxy 7 + netproxy 3）。覆盖：策略路由、路径探测、URL→文件名、runTool 安全调用 / stdin 回归 / 防注入、extract.py 正文抽取集成、国内外代理分流（curl 参数 / proxy env / Python CDP bypass）、组件脱敏。
 
 ## 已知坑
 
@@ -122,9 +122,10 @@ G-zhen-lan-pachong/
 │   ├── render.py         # Playwright 渲染
 │   └── lib/
 │       ├── router.mjs    # 纯函数：策略/路径探测/文件名（唯一真相源）
-│       └── run.mjs       # spawnSync 数组参数安全封装
-└── tests/
-    └── router.test.mjs   # 23 tests
+│       ├── run.mjs       # spawnSync 数组参数安全封装
+│       ├── proxy.mjs     # Node 侧国内外代理分流
+│       └── netproxy.py   # Python 侧 Playwright context proxy/bypass
+└── tests/                # 51 tests：router/component-md/proxy/netproxy
 ```
 
 ## 姊妹 skill

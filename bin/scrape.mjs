@@ -22,7 +22,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
-import { resolveBinPaths, planStrategy, defaultOutputDir, looksLikeShell, pathFromUrl } from "./lib/router.mjs";
+import { resolveBinPaths, planStrategy, defaultOutputDir, looksLikeShell, pathFromUrl, safeArgName } from "./lib/router.mjs";
 import { runTool } from "./lib/run.mjs";
 import { curlProxyArgs, proxyEnv } from "./lib/proxy.mjs";
 
@@ -57,12 +57,6 @@ function parseArgs(argv) {
 
 function log(opts, ...args) { if (opts.verbose) console.error("[scrape]", ...args); }
 
-// Sanitize user-supplied --filename: strip every path component/separator so it
-// can never escape the output dir (v2.1.4 review B-path fix).
-function safeArgName(name) {
-  return String(name).replace(/[<>:"/|?*\\]/g, "_").replace(/\.+/g, ".").replace(/^[. ]+|[. ]+$/g, "").slice(0, 80);
-}
-
 function safeFilename(url, format) {
   try {
     const u = new URL(url);
@@ -73,6 +67,8 @@ function safeFilename(url, format) {
     return `page.${format === "html" ? "html" : "md"}`;
   }
 }
+
+export { safeArgName };
 
 // ── Tier 1: curl + trafilatura ────────────────────────
 

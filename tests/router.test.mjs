@@ -14,8 +14,29 @@ import {
   planStrategy,
   looksLikeShell,
   pathFromUrl,
+  safeArgName,
 } from "../bin/lib/router.mjs";
 import { runTool } from "../bin/lib/run.mjs";
+
+// ── safeArgName (N1 regression) ──────────────────────
+
+test("safeArgName: empty/null input returns empty, never 'null'", () => {
+  assert.equal(safeArgName(null), "");
+  assert.equal(safeArgName(undefined), "");
+  assert.equal(safeArgName(""), "");
+});
+
+test("safeArgName: traversal and separators neutralised", () => {
+  for (const bad of ["..\\..\\evil", "../../evil", "a/../../b", "....//....//x", "nul?"])
+    assert.ok(!safeArgName(bad).includes("/"), bad);
+  assert.equal(safeArgName("..\\..\\evil"), "_._evil");
+});
+
+test("safeArgName: Windows reserved names prefixed", () => {
+  assert.equal(safeArgName("con.txt"), "_con.txt");
+  assert.equal(safeArgName("nul"), "_nul");
+  assert.equal(safeArgName("normal.md"), "normal.md");
+});
 
 const WIN = process.platform === "win32";
 const node = process.execPath;
