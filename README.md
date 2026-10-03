@@ -25,8 +25,8 @@ python -m playwright install chromium
 go install github.com/projectdiscovery/katana/cmd/katana@latest
 #   或从 https://github.com/projectdiscovery/katana/releases 下 katana_windows_amd64.zip
 
-# monolith（Rust 单文件 binary，~5MB）
-#   从 https://github.com/Y2z/monolith/releases 下 monolith.exe，放到 D:\tools\monolith\
+# monolith（Rust 单文件 binary，~5MB）已随 skill 自带：bin/vendor/monolith.exe
+#   router 用相对路径直调，无需另放 D:\tools；可用 MONOLITH_PATH 覆盖
 ```
 
 工具路径由 `bin/lib/router.mjs` 自动探测，可用环境变量覆盖：

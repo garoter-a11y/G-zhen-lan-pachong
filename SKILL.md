@@ -1,7 +1,7 @@
 ---
 name: G-zhen-lan-pachong
 description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
-version: 2.1.0
+version: 2.1.1
 ---
 
 # G-zhen-lan-pachong 箴爬虫
@@ -30,7 +30,7 @@ version: 2.1.0
 | beautifulsoup4 + markdownify | 通用 HTML→MD 回退（文档/参考页） | pip | Python 包 |
 | Playwright + Chromium | 本地 JS 渲染 | 已装 | Python 包 |
 | katana | 链接发现/全站 map | 60.8MB | `~/go/bin/katana.exe` |
-| monolith | 单页自包含归档 | 5.3MB | `D:\tools\monolith\monolith.exe` |
+| monolith | 单页自包含归档 | 5.3MB | 随skill自带 `bin/vendor/monolith.exe`（router相对路径直调） |
 | firecrawl | SaaS 渲染兜底 | npm 全局 | 未认证=免费限速档 |
 | Chrome 截图 | 终极视觉兜底 | 已装 | CDP / Playwright |
 

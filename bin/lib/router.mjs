@@ -7,6 +7,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
+import { fileURLToPath } from "node:url";
 
 /**
  * Probe a list of Windows candidate paths and return the first that exists;
@@ -44,8 +45,7 @@ export function resolveBinPaths() {
 
     // Single-page self-contained HTML archiver (Rust single binary, ~5MB)
     monolith: process.env.MONOLITH_PATH || resolveBin("monolith", [
-      "D:\\tools\\monolith\\monolith.exe",
-      "C:\\tools\\monolith\\monolith.exe",
+      fileURLToPath(new URL("../vendor/monolith.exe", import.meta.url)),
     ]),
 
     // SaaS scrape/crawl fallback (npm global)
