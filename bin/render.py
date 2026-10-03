@@ -10,8 +10,12 @@ Prints rendered HTML to stdout (or writes to --out).
 Exit 0 on success, 1 on navigation/render failure.
 """
 import argparse
+import os
 import sys
 import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+from netproxy import context_proxy
 
 
 def main():
@@ -51,6 +55,7 @@ def main():
                       file=sys.stderr)
                 return 2
             context = browser.new_context(
+                proxy=context_proxy(args.url),
                 viewport=viewport,
                 user_agent=args.user_agent or (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

@@ -1,7 +1,7 @@
 ---
 name: G-zhen-lan-pachong
 description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
-version: 2.1.2
+version: 2.1.3
 ---
 
 # G-zhen-lan-pachong 箴爬虫
@@ -49,6 +49,19 @@ version: 2.1.2
 **全站**（`crawl.mjs`）：katana map 发现同域 URL → 过滤静态资源/去重/限深 → 逐页走抓取链（默认 curl+trafilatura；`--js` 加 Playwright；`--firecrawl` 加云端兜底）→ 存 `{domain}/{path}/index.md` + `_manifest.json`。
 
 > 全站链路按 YAGNI 只保留产出文本的级（curl→Playwright→firecrawl）。monolith 归档/截图不产文本且批量太重，不在全站链路里；需要时对单页用 `scrape --archive`。
+
+## 网络环境与代理分流（国内直连，不许国内流量走代理）
+
+**铁律：国内域名一律直连，代理只服务境外站。** 依据：G先生 2026-10-03 令；v2rayN 只是兜底工具，国内链路不得依赖它。
+
+| 层 | 做法 |
+|---|---|
+| curl 级 | 命中国内后缀 → 自动加 `--noproxy <host>`，即使环境里挂了 `HTTPS_PROXY` 也不进代理 |
+| Playwright/CDP | 每个 context 统一 `proxy=socks5://127.0.0.1:10808, bypass=<CN名单>`：目标页与国内 CDN（如 hdslb.com）直连，境外请求才走 socks |
+
+- 国内判定：`*.cn` ＋ `references/cn-domains.txt`（~150 常用后缀，按 label 精确匹配，`evilbilibili.com` 不会误判）。同一份名单 mjs/py 共用；只放确属国内的域名，不确定别加。
+- 覆盖开关：`Z_PROXY_SERVER` 换代理出口；`Z_NO_PROXY=1` 全部直连（抓纯国内站时可用）。
+- 代理不通（refused/timeout）→ 停手汇报，不精重试；与箴网络同一口径。
 
 ## UI 组件采集（harvest）
 
@@ -131,8 +144,8 @@ node "$skill\bin\crawl.mjs" "URL" --include "/docs/*" --exclude "*/tag/*"
 node "$skill\bin\harvest.mjs" "URL" --selector "footer.newsletter" --name "newsletter-footer"
 node "$skill\bin\harvest.mjs" "本地.html" -s ".subscribe" -s ".card" -n "form" -n "card" -v --json
 
-# 跑测试（38 个：router 23 + component-md 15）
-cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs
+# 跑测试（44 个：router 23 + component-md 15 + proxy 6）
+cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs tests/proxy.test.mjs
 ```
 
 默认输出：`C:\Users\Administrator\Desktop\zhenpachong\<域名>\...`
@@ -161,6 +174,7 @@ cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs
 - **trafilatura 对非文章页（文档/参考/表格页）可能抽空**，extract.py 自动回退 bs4+markdownify（剥 nav/footer/aside 后转 MD）。
 - **`looksLikeShell` 字数阈值不能当 gate**：example.com 这种短而合法的页会被误判成 SPA。已改为总让 trafilatura 自己判断，shell 检测只做日志。
 - **写自定义抓取脚本时**：requests/httpx 已装（需复杂 cookie/会话/HTTP2 时用），lxml 已装（xpath 解析）。但日常抓取优先用上面的降级链，别重造。
+- **国内流量不许走代理**（v2.1.3）：curl 级对命中 cn-domains.txt 的目标自动 --noproxy；CDP context 以 socks5+bypass 全量 CN 名单创建。代理只管境外，v2rayN 挂了国内链路不受影响。
 
 ## 架构（跟箴网络一脉相承）
 
@@ -174,6 +188,10 @@ cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs
 - `bin/harvest.mjs`：**组件采集编排**——调 harvest.py 拿 JSON → component-md 渲染任务书 → 落盘。
 - `bin/harvest.py`：Playwright 开页（URL/本地文件）→ 注入采集器 → 按 selector 采 → 输出 JSON。
 - `bin/harvest-inject.js`：**自写页面采集器**（注入目标页跑）——视觉宿主/交互识别/原始样式表规则（@media/:hover/var/clamp）/脱敏，本地返回不外传。
+- `bin/lib/netproxy.py`：国内/境外代理分流（cn-domains.txt；给 Playwright context 产 socks5+bypass 配置）。
+- `bin/lib/proxy.mjs`：同一分流规则的 mjs 端（curl --noproxy 参数）。
+- `references/cn-domains.txt`：国内直连后缀清单（mjs/py 唯一共享数据源）。
+- `tests/proxy.test.mjs`：6 测试（CN 后缀/标签边界/名单加载/curl 参数）。
 - `tests/router.test.mjs`：23 测试（策略路由 + runTool 安全/stdin 回归 + extract.py 集成）。
 - `tests/component-md.test.mjs`：15 测试（脱敏白名单 + 攻击样例：script/style 标签体、hidden csrf、预填 email/phone、截断边界不泄漏；token 反推；任务书段落与安全契约；文件名）。
 

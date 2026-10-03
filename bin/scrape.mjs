@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { resolveBinPaths, planStrategy, defaultOutputDir, looksLikeShell, pathFromUrl } from "./lib/router.mjs";
 import { runTool } from "./lib/run.mjs";
+import { curlProxyArgs } from "./lib/proxy.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BIN = resolveBinPaths();
@@ -72,6 +73,7 @@ function safeFilename(url, format) {
 function curlFetch(url, opts) {
   const r = runTool(BIN.curl, [
     "-sL", "--max-time", "30",
+    ...curlProxyArgs(url),
     "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     url,
@@ -131,13 +133,18 @@ function screenshot(url, outPath) {
   // goto/screenshot throws — otherwise a timed-out navigation leaks a page in the shared browser.
   const script = `
 import sys
+sys.path.insert(0, r"${join(__dirname, "lib")}")
+from netproxy import context_proxy
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
     try:
         b = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
     except Exception:
         sys.exit(3)  # shared Chrome CDP down; caller records failure
-    pg = b.new_page(viewport={"width":1440,"height":900})
+    kw = {"viewport":{"width":1440,"height":900}}
+    cp = context_proxy(sys.argv[1])
+    if cp: kw["proxy"] = cp
+    pg = b.new_page(**kw)
     try:
         pg.goto(sys.argv[1], wait_until="domcontentloaded", timeout=30000)
         pg.wait_for_timeout(2500)

@@ -1,6 +1,6 @@
 {
   "name": "g-zhen-lan-pachong",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "箴爬虫：本机网页爬虫/抓取 skill。单页5级降级（curl+trafilatura→Playwright→firecrawl→monolith归档→截图），全站katana+队列；零 npm 依赖，clone 即用。",
   "type": "module",
   "private": true,
@@ -17,4 +17,5 @@
   "keywords": ["openclaw-skill", "scraping", "crawler", "trafilatura", "playwright", "katana", "monolith"],
   "license": "MIT"
 }
+
 
