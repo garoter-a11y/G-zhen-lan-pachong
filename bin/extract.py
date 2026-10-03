@@ -97,27 +97,34 @@ def main():
     return 0
 
 
+# Exact class tokens for client-side adblock-detection notice containers.
+# Token-exact match only — never substring — so a real article class like
+# "extension-tips-demo-article" can't be killed. Extend by exact token only.
+NOTICE_CLASS_TOKENS = frozenset({
+    "extension-tips", "extension-tips-v2", "extension-tips-v1",
+    "adblock-tip", "adguard-tip", "abp-tips", "anti-adblock", "abp-notice",
+})
+NOTICE_TEXTS = frozenset({
+    "该内容被adguard/adblock类插件屏蔽",
+    "请检查插件以恢复正常内容展示",
+})
+
+
 def strip_antiblock_notices(html):
     """Remove client-side adblock-detection notice elements before extraction."""
     try:
         from bs4 import BeautifulSoup
     except ImportError:
         return html
-    notice_texts = {
-        "该内容被adguard/adblock类插件屏蔽",
-        "请检查插件以恢复正常内容展示",
-    }
-    notice_class_parts = ("extension-tips", "adblock-tip", "adguard-tip", "abp-tips")
     soup = BeautifulSoup(html, "lxml")
     removed = 0
     for el in list(soup.find_all(True)):
-        if not getattr(el, "attrs", None):
-            continue
-        cls = " ".join(el.get("class", []) or []) or ""
-        if any(p in cls.lower() for p in notice_class_parts):
+        # exact class-token match
+        if any(t in NOTICE_CLASS_TOKENS for t in (el.get("class") or [])):
             el.decompose(); removed += 1; continue
-        txt = (el.string or "").strip().lower()
-        if txt in notice_texts and len(list(el.parents)) > 2:
+        # exact whole-text match (el.string is set only when the element owns one text node)
+        text = (el.string or "").strip().lower()
+        if text in NOTICE_TEXTS:
             el.decompose(); removed += 1
     return str(soup) if removed else html
 

@@ -1,7 +1,7 @@
 ---
 name: G-zhen-lan-pachong
 description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
-version: 2.1.3
+version: 2.1.4
 ---
 
 # G-zhen-lan-pachong 箴爬虫
@@ -144,8 +144,9 @@ node "$skill\bin\crawl.mjs" "URL" --include "/docs/*" --exclude "*/tag/*"
 node "$skill\bin\harvest.mjs" "URL" --selector "footer.newsletter" --name "newsletter-footer"
 node "$skill\bin\harvest.mjs" "本地.html" -s ".subscribe" -s ".card" -n "form" -n "card" -v --json
 
-# 跑测试（44 个：router 23 + component-md 15 + proxy 6）
-cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs tests/proxy.test.mjs
+# 跑测试（48 个：router 23 + component-md 15 + proxy 7 + netproxy 3）
+# 统一用通配写法：`node --test tests/` 目录形式在 Node 24/26 均失效，npm test 已内置此写法
+cd $skill; node --test tests/*.test.mjs
 ```
 
 默认输出：`C:\Users\Administrator\Desktop\zhenpachong\<域名>\...`
@@ -175,6 +176,8 @@ cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs tests/p
 - **`looksLikeShell` 字数阈值不能当 gate**：example.com 这种短而合法的页会被误判成 SPA。已改为总让 trafilatura 自己判断，shell 检测只做日志。
 - **写自定义抓取脚本时**：requests/httpx 已装（需复杂 cookie/会话/HTTP2 时用），lxml 已装（xpath 解析）。但日常抓取优先用上面的降级链，别重造。
 - **国内流量不许走代理**（v2.1.3）：curl 级对命中 cn-domains.txt 的目标自动 --noproxy；CDP context 以 socks5+bypass 全量 CN 名单创建。代理只管境外，v2rayN 挂了国内链路不受影响。
+  - **v2.1.4 复审修复**：补 crawl.mjs 漏写的 import（全站爬取原必挂）；境外主文档不再被误加 bypass（原裸加任何主机，被墙站主文档直连必败）；截图兑底改 new_context 隔离登录态；--filename 净化防路径穿越；剥离提示改 class token 精确匹配（原子串匹配可误删正文）；curl 境外显式 -x、katana -proxy、monolith 清/设代理环境变量；名单去重，新增 Python 分流测试。
+- **门户首页抽取质量**（小茉莉反馈，非链路问题）：gov.cn 首页 trafilatura 仅出 112 字节，method/errors 正常；需要门户全文时加 `--format html` 或浏览器级，属上游抽取局限，不做定向补丁。
 
 ## 架构（跟箴网络一脉相承）
 
@@ -191,7 +194,8 @@ cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs tests/p
 - `bin/lib/netproxy.py`：国内/境外代理分流（cn-domains.txt；给 Playwright context 产 socks5+bypass 配置）。
 - `bin/lib/proxy.mjs`：同一分流规则的 mjs 端（curl --noproxy 参数）。
 - `references/cn-domains.txt`：国内直连后缀清单（mjs/py 唯一共享数据源）。
-- `tests/proxy.test.mjs`：6 测试（CN 后缀/标签边界/名单加载/curl 参数）。
+- `tests/proxy.test.mjs`：7 测试（CN 后缀/标签边界/名单去重/curl 参数/代理环境变量）。
+- `tests/netproxy.test.mjs`：3 测试（Python 分流跨进程断言：外域不进 bypass、国内进 bypass、Z_NO_PROXY）。
 - `tests/router.test.mjs`：23 测试（策略路由 + runTool 安全/stdin 回归 + extract.py 集成）。
 - `tests/component-md.test.mjs`：15 测试（脱敏白名单 + 攻击样例：script/style 标签体、hidden csrf、预填 email/phone、截断边界不泄漏；token 反推；任务书段落与安全契约；文件名）。
 

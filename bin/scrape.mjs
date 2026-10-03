@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { resolveBinPaths, planStrategy, defaultOutputDir, looksLikeShell, pathFromUrl } from "./lib/router.mjs";
 import { runTool } from "./lib/run.mjs";
-import { curlProxyArgs } from "./lib/proxy.mjs";
+import { curlProxyArgs, proxyEnv } from "./lib/proxy.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BIN = resolveBinPaths();
@@ -56,6 +56,12 @@ function parseArgs(argv) {
 }
 
 function log(opts, ...args) { if (opts.verbose) console.error("[scrape]", ...args); }
+
+// Sanitize user-supplied --filename: strip every path component/separator so it
+// can never escape the output dir (v2.1.4 review B-path fix).
+function safeArgName(name) {
+  return String(name).replace(/[<>:"/|?*\\]/g, "_").replace(/\.+/g, ".").replace(/^[. ]+|[. ]+$/g, "").slice(0, 80);
+}
 
 function safeFilename(url, format) {
   try {
@@ -107,7 +113,7 @@ function firecrawlScrape(url, format) {
   const args = ["scrape", url];
   if (format === "markdown") args.push("--markdown");
   else if (format === "html") args.push("--html");
-  const r = runTool(BIN.firecrawl, args, { timeout: 60000 });
+  const r = runTool(BIN.firecrawl, args, { timeout: 60000, env: { HTTPS_PROXY: "", HTTP_PROXY: "", ALL_PROXY: "" } });
   if (r.ok && r.stdout.trim().length > 50) return r.stdout.trim();
   return null;
 }
@@ -118,7 +124,7 @@ function monolithArchive(url, outPath) {
   // monolith 2.10.x on Windows panics with -o <path> ("could not prepare output").
   // Workaround: write to stdout (-o -) and persist ourselves.
   mkdirSync(dirname(outPath), { recursive: true });
-  const r = runTool(BIN.monolith, [url, "-o", "-", "-e", "-q"], { timeout: 120000 });
+  const r = runTool(BIN.monolith, [url, "-o", "-", "-e", "-q"], { timeout: 120000, env: proxyEnv(url) });
   if (r.ok && r.stdout && r.stdout.length > 100) {
     writeFileSync(outPath, r.stdout, "utf8");
     return existsSync(outPath);
@@ -141,16 +147,15 @@ with sync_playwright() as p:
         b = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
     except Exception:
         sys.exit(3)  # shared Chrome CDP down; caller records failure
-    kw = {"viewport":{"width":1440,"height":900}}
     cp = context_proxy(sys.argv[1])
-    if cp: kw["proxy"] = cp
-    pg = b.new_page(**kw)
+    ctx = b.new_context(viewport={"width":1440,"height":900}, **({"proxy":cp} if cp else {}))
+    pg = ctx.new_page()
     try:
         pg.goto(sys.argv[1], wait_until="domcontentloaded", timeout=30000)
         pg.wait_for_timeout(2500)
         pg.screenshot(path=sys.argv[2], full_page=True)
     finally:
-        pg.close()
+        ctx.close()
 `;
   const r = runTool(BIN.python, ["-c", script, url, outPath], { timeout: 60000 });
   return r.ok && existsSync(outPath);
@@ -170,7 +175,8 @@ try {
 
   // Screenshot mode is a direct strategy (tier 5)
   if (plan.strategy === "screenshot") {
-    const shotPath = join(args.output, args.filename ? `${args.filename}.png` : safeFilename(url, "html").replace(/\.html$/, ".png"));
+    const fn = safeArgName(args.filename);
+    const shotPath = join(args.output, fn ? `${fn}.png` : safeFilename(url, "html").replace(/\.html$/, ".png"));
     if (screenshot(url, shotPath)) { result.method = "screenshot"; result.screenshotPath = shotPath; }
     else fail("screenshot", "render failed");
   }
@@ -243,7 +249,8 @@ try {
 
   // ── save content ──────────────────────────────────
   if (result.content) {
-    const filename = args.filename ? `${args.filename}.${args.format === "html" ? "html" : args.format === "text" ? "txt" : "md"}` : safeFilename(url, args.format);
+    const fn = safeArgName(args.filename);
+    const filename = fn ? `${fn}.${args.format === "html" ? "html" : args.format === "text" ? "txt" : "md"}` : safeFilename(url, args.format);
     const outPath = join(args.output, filename);
     writeFileSync(outPath, result.content, "utf8");
     result.file = outPath;
@@ -252,7 +259,8 @@ try {
 
   // ── optional monolith archive ────────────────────
   if (args.archive) {
-    const archPath = join(args.output, args.filename ? `${args.filename}.archive.html` : safeFilename(url, "html").replace(/\.html$/, ".archive.html"));
+    const fn = safeArgName(args.filename);
+    const archPath = join(args.output, fn ? `${fn}.archive.html` : safeFilename(url, "html").replace(/\.html$/, ".archive.html"));
     log(args, "archiving with monolith...");
     if (monolithArchive(url, archPath)) {
       result.archivePath = archPath;

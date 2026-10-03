@@ -76,14 +76,11 @@ jdcdn.com
 360buyimg.com
 jd.hk
 gov.cn
-gov.cn.cn
 edu.cn
 people.com.cn
 xinhuanet.com
 chinanews.com
 cctv.com
-cctvpic.com
-cntv.cn
 cctvpic.com
 cntv.cn
 china.com.cn
@@ -103,7 +100,6 @@ dbankcloud.com
 vivo.com.cn
 oppo.com
 coloros.com
-bilibili.com
 hdslb.net
 qbox.me
 qiniudn.com

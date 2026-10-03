@@ -21,6 +21,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBinPaths, planStrategy, defaultOutputDir } from "./lib/router.mjs";
 import { runTool } from "./lib/run.mjs";
+import { curlProxyArgs, proxyEnv, isDomestic, PROXY_SERVER } from "./lib/proxy.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BIN = resolveBinPaths();
@@ -72,6 +73,10 @@ function katanaMap(url, opts) {
     "-silent",
     "-nc",                       // no color
   ];
+  // Proxy routing by seed: foreign seed → explicit -proxy; domestic seed → no proxy env
+  let env = {};
+  if (!process.env.Z_NO_PROXY && !isDomestic(url)) args.push("-proxy", PROXY_SERVER);
+  else env = proxyEnv(url);  // strip inherited proxy vars for domestic seed
   // Same-domain scope: -cs takes a regex. Default -fs=rdn covers the registered
   // domain (www.example.com + app.example.com); for strict same-host, add -cs.
   if (opts.sameDomain) {
@@ -87,7 +92,7 @@ function katanaMap(url, opts) {
     args.push("-ef", opts.exclude);
   }
   log(opts, `katana: ${BIN.katana} ${args.join(" ")}`);
-  const r = runTool(BIN.katana, args, { timeout: 300000 });
+  const r = runTool(BIN.katana, args, { timeout: 300000, env });
   if (!r.ok && r.stdout.trim().length === 0) {
     throw new Error(`katana failed: ${r.stderr || r.error || "unknown error"}`);
   }
@@ -153,7 +158,7 @@ function firecrawlScrape(url, format) {
   const args = ["scrape", url];
   if (format === "markdown") args.push("--markdown");
   else if (format === "html") args.push("--html");
-  const r = runTool(BIN.firecrawl, args, { timeout: 60000 });
+  const r = runTool(BIN.firecrawl, args, { timeout: 60000, env: { HTTPS_PROXY: "", HTTP_PROXY: "", ALL_PROXY: "" } });
   return r.ok && r.stdout.trim().length > 50 ? r.stdout.trim() : null;
 }
 

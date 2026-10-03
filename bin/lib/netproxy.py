@@ -53,10 +53,12 @@ def context_proxy(url=""):
         return None
     server = os.environ.get("Z_PROXY_SERVER", "socks5://127.0.0.1:10808")
     bypass = ["cn", "*.cn"] + ["*." + s for s in cn_suffixes()]
-    # If the specific target is domestic the page itself must be in bypass too;
-    # the suffix list covers most, but include its registrable host explicitly.
+    # The target's bare host goes in bypass ONLY when domestic. Foreign main
+    # documents must go through the proxy (v2.1.4: earlier version added every
+    # host unconditionally, so blocked foreign sites loaded direct and failed).
+    import re
     host = host_of_url(url)
-    if host and host.replace(".", "").isalnum():
+    if re.fullmatch(r"[a-z0-9.-]+", host) and is_domestic(host):
         bypass.append(host)
     return {"server": server, "bypass": ",".join(bypass)}
 

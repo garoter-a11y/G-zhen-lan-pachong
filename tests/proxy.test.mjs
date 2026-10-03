@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isDomestic, curlProxyArgs, cnSuffixes } from "../bin/lib/proxy.mjs";
+import { isDomestic, curlProxyArgs, proxyEnv, cnSuffixes } from "../bin/lib/proxy.mjs";
 
 test("cn TLD always domestic", () => {
   assert.ok(isDomestic("example.gov.cn"));
@@ -10,7 +10,7 @@ test("cn TLD always domestic", () => {
 
 test("listed suffixes and subdomains are domestic", () => {
   assert.ok(isDomestic("www.bilibili.com"));
-  assert.ok( isDomestic("i0.hdslb.com"));
+  assert.ok(isDomestic("i0.hdslb.com"));
   assert.ok(isDomestic("bilibili.com"));
 });
 
@@ -21,15 +21,23 @@ test("foreign domains are not domestic", () => {
 });
 
 test("suffix-match must not cross labels", () => {
-  // evilbilibili.com must not match bilibili.com
   assert.ok(!isDomestic("evilbilibili.com"));
 });
 
-test("curlProxyArgs only for domestic hosts", () => {
+test("curlProxyArgs: domestic bypasses, foreign gets explicit proxy", () => {
   assert.deepEqual(curlProxyArgs("https://www.bilibili.com/x"), ["--noproxy", "www.bilibili.com"]);
-  assert.deepEqual(curlProxyArgs("https://example.com"), []);
+  const foreign = curlProxyArgs("https://example.com");
+  assert.equal(foreign[0], "-x");
+  assert.ok(foreign[1].includes("10808"));
 });
 
-test("domain list file actually loaded", () => {
-  assert.ok(cnSuffixes().length > 50);
+test("proxyEnv: domestic strips proxy vars, foreign sets them", () => {
+  assert.equal(proxyEnv("https://www.baidu.com").HTTPS_PROXY, "");
+  assert.ok(proxyEnv("https://example.com").HTTPS_PROXY.includes("10808"));
+});
+
+test("domain list file actually loaded with no dupes", () => {
+  const l = cnSuffixes();
+  assert.ok(l.length > 50);
+  assert.equal(new Set(l).size, l.length, "no duplicate suffixes");
 });
