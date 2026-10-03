@@ -63,7 +63,7 @@ def main():
         from playwright.sync_api import sync_playwright
     except ImportError:
         print(json.dumps({"ok": False,
-                          "error": "playwright not installed. pip install playwright && playwright install chromium"},
+                          "error": "playwright not installed. pip install playwright"},
                          ensure_ascii=False))
         return 2
 
@@ -71,7 +71,14 @@ def main():
     nav_error = None
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # 铁律：CDP 连共享系统 Chrome(9222)，new_context() 隔离登录态
+            try:
+                browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            except Exception:
+                print(json.dumps({"ok": False,
+                                  "error": "cannot connect to Chrome CDP 127.0.0.1:9222; start shared Chrome via G-zhen-wangluo bin/start-chrome-9222.ps1"},
+                                 ensure_ascii=False))
+                return 2
             context = browser.new_context(
                 viewport=viewport,
                 user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

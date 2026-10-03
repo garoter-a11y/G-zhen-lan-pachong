@@ -4,7 +4,7 @@
  *
  * Fallback ladder (lazy → heavy, local → cloud):
  *   1. curl + trafilatura  (SSR static, fastest, fully local)
- *   2. Playwright render + trafilatura  (SPA/JS, local Chromium)
+ *   2. Playwright render + trafilatura  (SPA/JS, via CDP 9222 shared system Chrome)
  *   3. firecrawl scrape  (SaaS render, needs internet/auth)
  *   4. monolith  (self-contained HTML archive, no content extraction)
  *   5. Playwright screenshot  (last resort → agent uses image vision)
@@ -128,19 +128,22 @@ function monolithArchive(url, outPath) {
 
 function screenshot(url, outPath) {
   // Inline Playwright screenshot. try/finally guarantees browser close even if
-  // goto/screenshot throws — otherwise a timed-out navigation leaks a zombie Chromium.
+  // goto/screenshot throws — otherwise a timed-out navigation leaks a page in the shared browser.
   const script = `
 import sys
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
-    b = p.chromium.launch(headless=True)
     try:
-        pg = b.new_page(viewport={"width":1440,"height":900})
+        b = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+    except Exception:
+        sys.exit(3)  # shared Chrome CDP down; caller records failure
+    pg = b.new_page(viewport={"width":1440,"height":900})
+    try:
         pg.goto(sys.argv[1], wait_until="domcontentloaded", timeout=30000)
         pg.wait_for_timeout(2500)
         pg.screenshot(path=sys.argv[2], full_page=True)
     finally:
-        b.close()
+        pg.close()
 `;
   const r = runTool(BIN.python, ["-c", script, url, outPath], { timeout: 60000 });
   return r.ok && existsSync(outPath);

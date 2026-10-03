@@ -28,7 +28,7 @@ def main():
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        print("[render] playwright not installed. pip install playwright && playwright install chromium",
+        print("[render] playwright not installed. pip install playwright",
               file=sys.stderr)
         return 2
 
@@ -40,7 +40,16 @@ def main():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # 铁律：不下载/不自起浏览器，一律 CDP 连共享系统 Chrome(9222)。
+            # new_context() 在 CDP 上是无痕式隔离上下文，不碰共享 profile 的登录态。
+            try:
+                browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            except Exception:
+                print("[render] cannot connect to Chrome CDP 127.0.0.1:9222. Start it first:\n"
+                      "  powershell -NoProfile -ExecutionPolicy Bypass -File \""
+                      "C:\\Users\\Administrator\\.openclaw\\workspace\\skills\\G-zhen-wangluo\\bin\\start-chrome-9222.ps1\"",
+                      file=sys.stderr)
+                return 2
             context = browser.new_context(
                 viewport=viewport,
                 user_agent=args.user_agent or (

@@ -36,6 +36,12 @@ def main():
         print("[extract] input too short", file=sys.stderr)
         return 1
 
+    # Strip anti-adblock warning nodes sites inject when they detect automation
+    # (e.g. bilibili headless renders <div class=extension-tips-v2>该内容被AdGuard/
+    # AdBlock类插件屏蔽</div> into ad slots). Left in place, trafilatura reads them
+    # as the whole article. Exact-text/class match only — never broad keyword kills.
+    html = strip_antiblock_notices(html)
+
     try:
         import trafilatura
     except ImportError:
@@ -89,6 +95,31 @@ def main():
     out = result.strip()
     sys.stdout.write(out + "\n")
     return 0
+
+
+def strip_antiblock_notices(html):
+    """Remove client-side adblock-detection notice elements before extraction."""
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return html
+    notice_texts = {
+        "该内容被adguard/adblock类插件屏蔽",
+        "请检查插件以恢复正常内容展示",
+    }
+    notice_class_parts = ("extension-tips", "adblock-tip", "adguard-tip", "abp-tips")
+    soup = BeautifulSoup(html, "lxml")
+    removed = 0
+    for el in list(soup.find_all(True)):
+        if not getattr(el, "attrs", None):
+            continue
+        cls = " ".join(el.get("class", []) or []) or ""
+        if any(p in cls.lower() for p in notice_class_parts):
+            el.decompose(); removed += 1; continue
+        txt = (el.string or "").strip().lower()
+        if txt in notice_texts and len(list(el.parents)) > 2:
+            el.decompose(); removed += 1
+    return str(soup) if removed else html
 
 
 def bs4_fallback(html, output_format):

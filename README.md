@@ -19,7 +19,8 @@
 ```powershell
 # Python 库
 pip install trafilatura beautifulsoup4 markdownify playwright
-python -m playwright install chromium
+# 禁止 playwright install：渲染级一律 CDP 连共享系统 Chrome(9222)，启动：
+#   powershell -NoProfile -ExecutionPolicy Bypass -File "<G-zhen-wangluo>\bin\start-chrome-9222.ps1"
 
 # katana（Go 单文件 binary，~60MB）
 go install github.com/projectdiscovery/katana/cmd/katana@latest
@@ -84,7 +85,7 @@ node "$skill\bin\crawl.mjs" "URL" --include "/docs/*" --exclude "*/tag/*"
 |----|------|------|------|
 | 1 | curl + trafilatura | SSR 静态文章 | 秒级，纯本地 |
 | 2 | bs4 + markdownify | trafilatura 抽不到的文档/参考页 | 秒级 |
-| 3 | Playwright (Chromium) | JS 渲染的 SPA | 10-30秒 |
+| 3 | Playwright → 系统Chrome(CDP 9222) | JS 渲染的 SPA | 10-30秒 |
 | 4 | firecrawl | 强反爬/需云端渲染 | 联网，限速 |
 | 5 | monolith | 自包含 HTML 归档（不抽正文） | 10-60秒 |
 | 6 | 截图 + image 识别 | 以上全失败 | 兜底 |

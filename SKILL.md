@@ -1,7 +1,7 @@
 ---
 name: G-zhen-lan-pachong
 description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
-version: 2.1.1
+version: 2.1.2
 ---
 
 # G-zhen-lan-pachong 箴爬虫
@@ -11,7 +11,7 @@ version: 2.1.1
 ## 什么时候用我
 
 - 抓一篇文章/文档 → 干净 Markdown（去导航/广告/页脚）
-- 网页是 JS 渲染的 SPA，`web_fetch` 只拿到空壳 → 本地 Chromium 渲染后抽
+- 网页是 JS 渲染的 SPA，`web_fetch` 只拿到空壳 → CDP 连共享系统 Chrome(9222) 渲染后抽（禁下载 chromium）
 - 批量/全站抓（文档站、博客、小站）→ katana 发现链接 + 队列逐页抓
 - 把网页存成自包含 HTML（内联图片/CSS 离线可看）→ monolith 归档
 - 以上都失败 → 截图，交 image 工具视觉识别
@@ -28,7 +28,7 @@ version: 2.1.1
 | curl.exe | 静态页最快抓取 | 系统自带 | PATH |
 | trafilatura | 正文抽取黄金标准 | ~6MB | Python 包 |
 | beautifulsoup4 + markdownify | 通用 HTML→MD 回退（文档/参考页） | pip | Python 包 |
-| Playwright + Chromium | 本地 JS 渲染 | 已装 | Python 包 |
+| Playwright + 系统Chrome(CDP 9222) | 本地 JS 渲染 | 已装 | Python 包，Chrome 走共享实例 |
 | katana | 链接发现/全站 map | 60.8MB | `~/go/bin/katana.exe` |
 | monolith | 单页自包含归档 | 5.3MB | 随skill自带 `bin/vendor/monolith.exe`（router相对路径直调） |
 | firecrawl | SaaS 渲染兜底 | npm 全局 | 未认证=免费限速档 |
@@ -41,7 +41,7 @@ version: 2.1.1
 **单页**（`scrape.mjs`，auto 模式自动逐级降级）：
 1. `curl` + trafilatura（SSR 静态页，秒级，纯本地）
 2. trafilatura 抽不到 → bs4+markdownify 通用回退
-3. Playwright 渲染 Chromium + trafilatura（SPA/JS）
+3. Playwright 经 CDP 渲染系统 Chrome(9222) + trafilatura（SPA/JS）
 4. firecrawl scrape（SaaS，要联网）
 5. monolith 归档（`--archive`，存自包含 HTML，不抽正文）
 6. 全失败 → Playwright 截图，调 image 工具识别
@@ -182,3 +182,4 @@ cd $skill; node --test tests/router.test.mjs tests/component-md.test.mjs
 - 改完跑 `node --test tests/` 必须全绿。
 - 纯逻辑进 router.mjs 先写测试；子进程调用走 runTool 数组参数，**禁止字符串拼 shell**。
 - 不自审：动完核心逻辑派 fresh-context 子 agent 复审。
+

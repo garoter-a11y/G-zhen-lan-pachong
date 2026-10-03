@@ -168,7 +168,7 @@ function scrapeOne(url, opts) {
   } else {
     errors.curl = "fetch failed";
   }
-  // tier 2: Playwright render (only with --js; headless Chromium per page is slow for bulk)
+  // tier 2: Playwright render via CDP 9222 (only with --js; per-page render is slow for bulk)
   if (opts.js) {
     html = playwrightRender(url, 2500, true);
     if (html) {
