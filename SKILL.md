@@ -1,7 +1,7 @@
 ---
 name: G-zhen-lan-pachong
-description: 箴爬虫。本机网页抓取/爬虫 skill——单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
-version: 2.1.6
+description: 箴爬虫。本机网页抓取/爬虫 skill——站点资产发现（sitemap/JS路由/子域/端口建图）、目标导向找参考件（discover→hunt 定位页面再深采）、单页正文抽取、SPA 的 JS 渲染抓取、全站镜像爬取、UI 组件采集（把网页上一个可见控件/组件采成脱敏的复刻任务书 markdown）。触发词：爬/抓/抓取/爬虫/scrape/crawl/扒/镜像站/保存网页/全站离线镜像/作品离线搬运/套壳/扒课件/采组件/采集组件/扒组件/harvest/这个控件怎么实现/复刻组件/这个站有哪些页面/登录页在哪/站点地图/找参考文件/找不到页面/discover/hunt/资产发现。当需要把网页内容（文章、文档、列表、整个小站、UI 组件）抓成本地 Markdown/HTML 时使用。姊妹 skill：G-zhen-wangluo（视频/媒体下载/截图，不管正文与组件）；组件采来后用 G-zhen-ui（箴UI craft）重写。
+version: 2.2.0
 ---
 
 # G-zhen-lan-pachong 箴爬虫
@@ -20,6 +20,8 @@ version: 2.1.6
 **不要用我做的**：下视频/音频/图片流（那是 G-zhen-wangluo 箴网络）；登录态/付费墙内容（先问 G 先生）；**拆解某个插件/JS 的加密或混淆逻辑**（那是 G-zhen-nixiang 箴逆向——「拆明白一个黑盒」归它，「采页面内容」归我）；**根据采集稿把组件写成我们自己的代码**（那是 G-zhen-ui 箴UI craft——我只管「采进来」，箴UI 管「生成出来」）。
 
 > **第四类活：批量拉「数据型站点」的 API 数据**（题库/表格/列表型 SaaS，目标是把结构化数据拉进本地库，不是抽文章正文）。scrape/crawl 不适用（trafilatura 抽不出 JSON 列表、katana 发现不了 XHR），走专门分支，见 `references/api-bulk-harvest.md`（SPA 接口定位、分页/限速/断点续传、Referer 鉴权文件下载、**对账本硬要求**）。触发："把这个站的数据全拉下来/拉题库/批量导出列表数据/拉它后台的XX"。
+
+> **第五类活：网站作品/资产全量镜像（离线化搬运）**（教育课件社区、H5 作品平台：作品要原样搬到本地、断网可跑、不依赖源站）。不是抽正文也不是拉 JSON，核心是"多代际作品形态 + 三层资产（HTML/CSS/JS 相对引用）+ 绝对 URL 离线改写 + 运行时服务登记 + 断网真机验收"。只解析 HTML 壳会漏 CSS 字体与 `media/{id}` 相对媒体目录；"下载完成"≠"可离线引用"。见 `references/work-mirror.md`（CDP 摸代际接口/公开池与登录态全量两套列表的差集/legacy 老代被平台停发/单线程防 WAF/403 与熔断分级/脱离会话进程编排/增量基线防重下/六问交付清单）。触发："把这站作品全扒下来离线用/套壳到我们页面/不依赖源站任何服务"。
 
 ## 工具链（全部本机已装，零 npm 依赖）
 
@@ -48,6 +50,13 @@ version: 2.1.6
 
 **全站**（`crawl.mjs`）：katana map 发现同域 URL → 过滤静态资源/去重/限深 → 逐页走抓取链（默认 curl+trafilatura；`--js` 加 Playwright；`--firecrawl` 加云端兜底）→ 存 `{domain}/{path}/index.md` + `_manifest.json`。
 
+**先建图再定向找件**（`discover.mjs` → `hunt.mjs`，2026-10-12 新增，治「全站抓了一堆还是找不到要参考的页面」）：
+1. `discover.mjs <url>` 只读建站点资产图：robots/sitemap（含 sitemapindex 递归与 .gz）→ 首页链接 → **JS bundle 里的路由字面量（专治 React/Next/Vue 深页无 `<a>` 链接）** → crt.sh 证书透明被动收子域 → TCP 连接探 Web 端口（nmap 在则自动改用 nmap）。产 `site-map.json` + 人看的 `site-map.md`。
+2. `hunt.mjs --map site-map.json --target "登录 login"`：对候选页**轻量探一次**（取标题+正文头 3KB，不全文下载）按目标词中英文打分排序，产 `hunt-result.md`；只对强命中跑 harvest/scrape 深采。多个需求重复 `--target`。
+3. 实测：wulikanjian 499 页中 hunt「下载/播客」精准把 /downloads(11分)、/podcasts(9分) 排前二。
+
+> 侦察边界（铁律）：discover/hunt 全程**只读公开信息**，不试口令、不利用漏洞、不发攻击流量。`--enumerate`（常见子域名/后台路径清单猜查）请求量大、对方日志明显，**默认关闭，只对自有或明确授权目标开**。端口扫描是正常侦察动作默认开启（`--ports web|common|none`）。箴辅导上线前的攻击性自检（弱口令/漏洞验证）走后续单独立项的防御打靶模块，不塞进爬虫。
+
 > 全站链路按 YAGNI 只保留产出文本的级（curl→Playwright→firecrawl）。monolith 归档/截图不产文本且批量太重，不在全站链路里；需要时对单页用 `scrape --archive`。
 
 ## 网络环境与代理分流（国内直连，不许国内流量走代理）
@@ -62,6 +71,8 @@ version: 2.1.6
 - 国内判定：`*.cn` ＋ `references/cn-domains.txt`（~150 常用后缀，按 label 精确匹配，`evilbilibili.com` 不会误判）。同一份名单 mjs/py 共用；只放确属国内的域名，不确定别加。
 - 覆盖开关：`Z_PROXY_SERVER` 换代理出口；`Z_NO_PROXY=1` 全部直连（抓纯国内站时可用）。
 - 代理不通（refused/timeout）→ 停手汇报，不精重试；与箴网络同一口径。
+- **开工先判国别，国内站绝不挂代理绕回国内**（2026-10-12 G先生问立）：动手抓站第一件事＝确认目标是国内还是境外。国内域名（命中 cn 名单）代码已自动 `--noproxy` 直连，**不要**为图省事 `export HTTPS_PROXY=...` 把全局流量塞进 socks5——国内站绕境外代理一圈既慢又可能被风控。抓之前先在命令行验一次：`curl.exe --noproxy "*" -sS -o NUL -w "%{http_code}" "<国内URL>"`，直连通就别带代理。
+- **代理站的本地侦察盲区**（discover 专用）：境外走 socks5 时 DNS 解析发生在代理远端，本机 `dns.resolve4` 会得 NXDOMAIN——此时**页面/sitemap/JS 路由发现照常**（请求经代理），但**端口探测和子域 IP 解析无效**。日志出现 `DNS ... NXDOMAIN` 且页面却能抓到，就是这个盲区，不是站点不存在；要端口/子域结果须在能直连目标的网络跑，别把 NXDOMAIN 写进结论当事实。
 
 ## UI 组件采集（harvest）
 
@@ -134,6 +145,17 @@ node "$skill\bin\scrape.mjs" "URL" --format html
 # 全站爬取（同域，深度2，限100页，限速）
 node "$skill\bin\crawl.mjs" "https://docs.example.com" --depth 2 --limit 100 --delay 300 -v
 
+# 先建站点资产图（sitemap/JS路由/子域/Web端口）→ site-map.md/json
+node "$skill\bin\discover.mjs" "https://example.com" -v
+# 含常见服务端口（SSH/DB/RDP 等）；连子域一起扫端口
+node "$skill\bin\discover.mjs" "https://example.com" --ports common --scan-subdomains
+# 清单猜查（常见后台路径/子域）——仅自有或授权目标，动静大
+node "$skill\bin\discover.mjs" "https://example.com" --enumerate --confirm-loud
+
+# 目标导向定位参考件（先 discover 再 hunt，中英文关键词都给）
+node "$skill\bin\hunt.mjs" --map "桌面\zhenpachong\example.com\site-map.json" --target "登录 login" --target "注册 register"
+# 命中后再深采（组件用 harvest，正文用 scrape）
+
 # 全站 + JS 渲染 + firecrawl 兜底（SPA 站，慢）
 node "$skill\bin\crawl.mjs" "https://app.example.com" --js --firecrawl --depth 1 --limit 50
 
@@ -144,7 +166,7 @@ node "$skill\bin\crawl.mjs" "URL" --include "/docs/*" --exclude "*/tag/*"
 node "$skill\bin\harvest.mjs" "URL" --selector "footer.newsletter" --name "newsletter-footer"
 node "$skill\bin\harvest.mjs" "本地.html" -s ".subscribe" -s ".card" -n "form" -n "card" -v --json
 
-# 跑测试（51 个：router 26 + component-md 15 + proxy 7 + netproxy 3）
+# 跑测试（70 个：router 26 + component-md 15 + proxy 8 + netproxy 3 + discover-core 18）
 # 统一用通配写法：`node --test tests/` 目录形式在 Node 24/26 均失效，npm test 已内置此写法
 cd $skill; node --test tests/*.test.mjs
 ```
@@ -161,6 +183,8 @@ cd $skill; node --test tests/*.test.mjs
 - crawl `--js`：启用 katana headless + Playwright 渲染（慢，但能抓 SPA 全站）
 - crawl `--firecrawl`：本地两级失败后用 firecrawl SaaS 兜底（每页云端调用，慢/限速，按需开）
 - crawl `--concurrency N`：katana 并发（1-8）；`--delay MS`：每页间隔（礼貌限速）
+- discover `--ports web|common|none`：端口探测范围（默认 web 九端口；nmap 存在自动升级为服务识别）；`--scan-subdomains` 连子域一起扫；`--no-crt` 跳过证书透明查询；`--enumerate` 必须配 `--confirm-loud` 双闸才执行（高动静，仅授权目标；软 404 基线自动剔除假命中）；`--sitemap-depth N` 子 sitemap 递归层数（默认 3，非法值回退）
+- hunt `--target` 可重复（中英双语命中更准）；`--max-probe N` 轻探页上限（默认 60，先按 URL 信号排序再探）；4xx/5xx 页面剔除，不允许路径名撞关键词造成假命中
 
 ## 路径探测与环境变量覆盖
 
@@ -190,21 +214,42 @@ cd $skill; node --test tests/*.test.mjs
 - `bin/render.py`：Playwright 渲染（含自动滚屏触发懒加载）。
 - `bin/scrape.mjs`：单页降级链入口。
 - `bin/crawl.mjs`：全站 katana+队列。
+- `bin/lib/discover-core.mjs`：**资产发现纯函数**——同域链接（仅返回同注册域）/JS bundle/路由字面量提取、sitemap（含索引/gz）/robots 解析、子域归集、hunt 中英双语打分排序、SSRF 作用域闸。零副作用，18 个测试。
+- `bin/discover.mjs`：资产图编排——sitemap 递归、JS 路由、crt.sh 被动子域、node:net 内置 TCP 端口探针（nmap 可选增强）、`--enumerate` 清单猜查，落 site-map.json/md。
+- `bin/hunt.mjs`：目标导向定位——吃 site-map，轻量探测（标题+正文头 3KB + HTTP 状态）打分排序，落 hunt-result.json/md。
+- `tests/discover-core.test.mjs`：18 测试（同域链接/JS 路由去噪/sitemap 容器严格分类/robots/子域/作用域闸 isInScope 与私网拒绝/多目标评分排序）。
 - `bin/harvest.mjs`：**组件采集编排**——调 harvest.py 拿 JSON → component-md 渲染任务书 → 落盘。
 - `bin/harvest.py`：Playwright 开页（URL/本地文件）→ 注入采集器 → 按 selector 采 → 输出 JSON。
 - `bin/harvest-inject.js`：**自写页面采集器**（注入目标页跑）——视觉宿主/交互识别/原始样式表规则（@media/:hover/var/clamp）/脱敏，本地返回不外传。
 - `bin/lib/netproxy.py`：国内/境外代理分流（cn-domains.txt；给 Playwright context 产 socks5+bypass 配置）。
 - `bin/lib/proxy.mjs`：同一分流规则的 mjs 端（curl --noproxy 参数）。
 - `references/cn-domains.txt`：国内直连后缀清单（mjs/py 唯一共享数据源）。
-- `tests/proxy.test.mjs`：7 测试（CN 后缀/标签边界/名单去重/curl 参数/代理环境变量）。
+- `tests/proxy.test.mjs`：8 测试（CN 后缀/标签边界/名单去重/curl 参数/代理环境变量/loopback 与 RFC1918 本地地址强制直连）。
 - `tests/netproxy.test.mjs`：3 测试（Python 分流跨进程断言：外域不进 bypass、国内进 bypass、Z_NO_PROXY）。
-- `tests/router.test.mjs`：26 测试（策略路由 + runTool 安全/stdin 回归 + extract.py 集成 + safeArgName 空值/穿越/保留名回归）。
+- `tests/router.test.mjs`：26 测试
+- **v2.2.0 资产发现**（借鉴 ARTEX 资产图/探索图思路，只取只读侦察层）：新增 discover/hunt 双入口；proxy.mjs 补 loopback/内网地址（含 IPv6 ULA/LL 与 ::ffff 映射）强制直连，本地打靶/CDP 不再被 socks5 吞。**fresh-context 复审后修复 4 严重 +5 中等**：① sitemap 递归改 BFS 分层（旧 depth 计数会让分片大站只抓前 3~4 个 sitemap）；② 作用域闸 isInScope——sitemap/robots 声明的越界地址（含 169.254.169.254 云元数据/内网）一律丢弃，curl 跳转在 JS 侧逐跳校验不跨主机，加 `--proto =http,https`；③ 种子只收 http(s)，拒 file:// 等协议；④ .gz sitemap 改临时文件二进制抓取（utf8 解码会毁 gzip 字节，旧版必坏）；⑤ urlset 严格按容器分类不再猜文件名；⑥ enumerate 双闸 +软 404 基线（随机不存在路径对照，401/403 单列为认证信号）；⑦ hunt 校验 map URL 作用域、记录跳转 ↪；⑧ argv 注入防御（URL 前加 `--`）。已知限制：走代理的境外目标本地 DNS 可能 NXDOMAIN，端口/子域侦察需直连环境；hunt 为标题级匹配，同义改名页可能漏判，关键词中英文都给。（策略路由 + runTool 安全/stdin 回归 + extract.py 集成 + safeArgName 空值/穿越/保留名回归）。
+- **v2.2.0 箴代码双轴复审清理**（2026-10-12，Standards 轴 FAIL / Spec 轴 PASS，论据全部主 agent 实测后处理）：删除死代码——discover/hunt 复制残留的 `__dirname`＋fileURLToPath 导入、全仓零调用的 `classifyProbe`（连其测试）、extractLinks 无消费方的 external 桶（改只返回同域 URL 数组）、isInScope 永不可达的 `allowPrivate` 形参分支、curlOnce 断链的 accept 透传、crtShSubdomains 重复的 `o.crt` 短路、stale「legacy」注释；接线而非删——robotsDisallow 与子域 openPorts 改为真在 site-map.md 渲染。**Spec 轴抓到一个真实越权口**：hunt 原 `-sSL` 自动跟随 302 不过作用域闸，候选页 302 到第三方时会下载并给外域正文打分；改为 JS 侧逐跳跟随（≤5、每跳 isInScope、跨域判 dead，本地 302→example.com 实测不打分）；discover/hunt 的 curl 统一加 `--max-filesize 5MB`；nmap 端口串改由 WEB/COMMON_PORTS 派生防漂移；UA 下沉 DISCOVER_UA 单点。70 测试全绿。
 - `tests/component-md.test.mjs`：15 测试（脱敏白名单 + 攻击样例：script/style 标签体、hidden csrf、预填 email/phone、截断边界不泄漏；token 反推；任务书段落与安全契约；文件名）。
 
 ## 质量纪律（箴代码）
 
 - 改完跑 `node --test tests/*.test.mjs` 必须全绿（Node ≥26 不接受目录参数）。
-- 纯逻辑进 router.mjs 先写测试；子进程调用走 runTool 数组参数，**禁止字符串拼 shell**。
+
+### ⛔ 外部输入门禁（新增「抓取/发请求/读文件」代码时逐条跑，不是建议是 checklist）
+
+> 2026-10-12 v2.2.0 血训：复审一次抓出 4 严重，全因 happy-path 测试默认外部输入善意。凡是新写的代码会**拿外部内容去发请求或读文件**（sitemap/robots/跳转 Location/响应里的 URL/map JSON/用户给的 URL），合并前必须逐条有**对抗测试**且全绿。缺任一条不许提交。
+
+1. **协议白名单**：`file://`、`dict://`、`gopher://` 种子必须退出码非 0；curl 统一带 `--proto "=http,https"`。写一条非法协议测试断言抛错/退出。
+2. **作用域闸**：外部内容声明的越界 URL（其他注册域、`169.254.169.254` 云元数据、`192.168.*`/`10.*`/`127.*` 内网，除非种子本身就是它）必须被丢弃并在 `-v` 留痕。构造一个指向 169.254 的 sitemap 测试。
+3. **跳转不跨主机**：不自动跨域跟随 3xx，逐跳在 JS 侧过作用域闸、限跳数（≤5）；写一条 302→外域被拦的测试。
+4. **二进制走字节**：.gz 等压缩响应必须拿原始 Buffer（临时文件 `-o` 或 buffer 编码），禁止经 utf8 管道；写一个 gzip 压缩 sitemap 端到端断言解出页面。
+5. **软 404**：猜查/探测先打一个随机不存在路径建立基线，同码同长判假命中剔除，不许只认硬 404。
+6. **argv 注入**：来自数据的 URL 前加 `--`，并断言以 `http(s)://` 开头；用 `"-Oevil"` 这类串验证不会被当成 curl 参数。
+7. **递归按层不按弹出数**：sitemapindex 多分片用 BFS 分层，写「一个索引挂 ≥10 个分片」用例证明全抓到（旧计数只抓前 3~4 个）。
+
+判据：每条都要有**会先变红**的对抗测试（先构造恶意输入确认现状会为害，再加防护转绿），只测正常输入不算数。
+- 纯逻辑进 router.mjs/discover-core.mjs 先写测试；子进程调用走 runTool 数组参数，**禁止字符串拼 shell**。
+- discover/hunt 只做公开只读侦察；`--enumerate` 与任何攻击性动作仅限自有/书面授权目标，产物里保留探测来源留痕。
 - 不自审：动完核心逻辑派 fresh-context 子 agent 复审。
 - **正文抽取回归靶子必须匹配本 skill 用途**（2026-10-03 小茉莉误报事件后立规）：回归固定用文档/文章类页面（文档站、博客文章页、政务正文页）。bilibili 这类动态应用站 HTML 无文章正文，抽取落空、回退原始网页（playwright-raw）属降级链正常兜底，**不判定为回退缺陷**；此类站只作反广告提示夹具，不作正文靶子。要 B 站内容（视频/字幕/评论）走 G-zhen-wangluo。判定前先问「这个站该不该由箴爬虫测」。
 

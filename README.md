@@ -1,6 +1,6 @@
 # G-zhen-lan-pachong 箴爬虫
 
-> 本机网页抓取 / 爬虫 skill — 单页正文抽取 · JS 渲染抓取 · 全站镜像爬取。
+> 本机网页抓取 / 爬虫 skill — 站点资产发现 · 目标导向找参考件 · 单页正文抽取 · JS 渲染抓取 · 全站镜像爬取。
 > 零 npm 依赖，clone 即用（外部工具均为预编译 binary 或 pip 包）。
 
 ## 它解决什么
@@ -79,6 +79,22 @@ node "$skill\bin\crawl.mjs" "URL" --include "/docs/*" --exclude "*/tag/*"
 
 产物：`<output>/<url路径>/index.md` + `<output>/_manifest.json`（每页用了哪个工具、字数、失败原因）。
 
+### 资产发现 + 目标导向找参考件（discover → hunt）
+
+治「全站抓了一堆还是找不到要参考的页面」。全程只读公开信息；清单猜查 `--enumerate` 默认关、只打自有/授权目标。
+
+```powershell
+# 建站点资产图：robots/sitemap（含索引/gz）+ 首页链接 + JS bundle 路由（SPA 深页）
+# + crt.sh 被动子域 + TCP Web 端口（nmap 存在自动升级）→ site-map.json/md
+node "$skill\bin\discover.mjs" "https://example.com" -v
+node "$skill\bin\discover.mjs" "https://example.com" --ports common --scan-subdomains
+node "$skill\bin\discover.mjs" "https://example.com" --enumerate --confirm-loud   # 双闸，授权目标限定
+
+# 在资产图里定位要找的页面（轻探标题+正文头，打分排序）→ hunt-result.md
+node "$skill\bin\hunt.mjs" --map "<out>\site-map.json" --target "登录 login" --target "下载 download"
+# 强命中再交 harvest（采组件）或 scrape（抽正文）深采
+```
+
 ## 降级链原理
 
 | 级 | 工具 | 适用 | 速度 |
@@ -99,7 +115,7 @@ cd C:\Users\Administrator\.openclaw\workspace\skills\G-zhen-lan-pachong
 node --test tests/*.test.mjs   # Node ≥26 不接受目录参数
 ```
 
-51 个测试（router 26 + component-md 15 + proxy 7 + netproxy 3）。覆盖：策略路由、路径探测、URL→文件名、runTool 安全调用 / stdin 回归 / 防注入、extract.py 正文抽取集成、国内外代理分流（curl 参数 / proxy env / Python CDP bypass）、组件脱敏。
+70 个测试（router 26 + component-md 15 + proxy 8 + netproxy 3 + discover-core 18）。覆盖：策略路由、路径探测、URL→文件名、runTool 安全调用 / stdin 回归 / 防注入、extract.py 正文抽取集成、国内外代理分流（curl 参数 / proxy env / Python CDP bypass / loopback 与 IPv6 私网强制直连）、组件脱敏、资产发现解析（sitemap 严格分类/robots/JS 路由/子域/作用域 SSRF 闸/评分排序/404 剔除）。
 
 ## 已知坑
 
@@ -118,14 +134,17 @@ G-zhen-lan-pachong/
 ├── bin/
 │   ├── scrape.mjs        # 单页降级链入口
 │   ├── crawl.mjs         # 全站 katana + 队列
+│   ├── discover.mjs      # 只读资产发现：sitemap/JS路由/子域/端口
+│   ├── hunt.mjs          # 目标导向定位参考件（轻探打分）
 │   ├── extract.py        # trafilatura + bs4/markdownify 正文抽取
 │   ├── render.py         # Playwright 渲染
 │   └── lib/
-│       ├── router.mjs    # 纯函数：策略/路径探测/文件名（唯一真相源）
+│       ├── router.mjs      # 纯函数：策略/路径探测/文件名（唯一真相源）
+│       ├── discover-core.mjs # 纯函数：链接/JS路由/sitemap/robots/子域/打分
 │       ├── run.mjs       # spawnSync 数组参数安全封装
 │       ├── proxy.mjs     # Node 侧国内外代理分流
 │       └── netproxy.py   # Python 侧 Playwright context proxy/bypass
-└── tests/                # 51 tests：router/component-md/proxy/netproxy
+└── tests/                # 70 tests：router/component-md/proxy/netproxy/discover-core
 ```
 
 ## 姊妹 skill
